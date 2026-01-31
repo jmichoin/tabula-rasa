@@ -1,0 +1,9 @@
+/Users/micoun/Documents/hokna/crursor/tabula rasa/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+DEBUG: process_async START
+DEBUG: Primary Identification
+DEBUG: Starting Stems Task
+DEBUG: Starting Analysis Task
+ERROR: Separation Failed: The operator 'aten::_fft_r2c' is not currently implemented for the MPS device. If you want this op to be added in priority during the prototype phase of this feature, please comment on https://github.com/pytorch/pytorch/issues/77764. As a temporary fix, you can set the environment variable `PYTORCH_ENABLE_MPS_FALLBACK=1` to use the CPU as a fallback for this op. WARNING: this will be slower than running natively on MPS.
+DEBUG: Process completed in 5.01 seconds
+{"key": "Unknown", "tuning": "rasa/.tmp/stems_test", "chords": [{"chord": "A", "start": 0.0, "end": 29.976961451247167}], "notes": [{"start": 0.011609977324263039, "end": 29.785956462585034, "pitch": 76, "velocity": 84}, {"start": 0.023219954648526078, "end": 26.24362947845805, "pitch": 73, "velocity": 83}, {"start": 0.023219954648526078, "end": 29.797566439909296, "pitch": 69, "velocity": 62}, {"start": 26.24362947845805, "end": 29.797566439909296, "pitch": 73, "velocity": 83}], "pro_tab": "[Synthesized Rhythm Guide]\n\n    A       \ne|-0--------|\nB|-2--------|\nG|-2--------|\nD|-2--------|\nA|-0--------|\nE|----------|\n", "stems": null, "tempo": 0.0, "song_info": {"title": "Test", "artist": "Test", "is_hint": true, "method": "manual"}, "success": true, "error": null}

@@ -1,0 +1,187 @@
+/Users/micoun/Documents/hokna/crursor/tabula rasa/.venv/lib/python3.9/site-packages/pydub/utils.py:170: RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+  warn("Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work", RuntimeWarning)
+{
+  "matches": [
+    {
+      "id": "247791483",
+      "offset": 1197.978875,
+      "timeskew": 0.0035370588,
+      "frequencyskew": -0.00038653612
+    }
+  ],
+  "location": {
+    "accuracy": 0.01
+  },
+  "timestamp": 4286315100,
+  "timezone": "Europe/Moscow",
+  "track": {
+    "layout": "5",
+    "type": "MUSIC",
+    "key": "132373236",
+    "title": "Postlude",
+    "subtitle": "Stephen Philips",
+    "images": {
+      "background": "https://is1-ssl.mzstatic.com/image/thumb/Music69/v4/96/94/45/96944522-6c90-de47-5763-4bf022fbe1d8/Zmyzm.png/400x400cc.jpg",
+      "coverart": "https://is1-ssl.mzstatic.com/image/thumb/Music69/v4/96/94/45/96944522-6c90-de47-5763-4bf022fbe1d8/Zmyzm.png/400x400cc.jpg",
+      "coverarthq": "https://is1-ssl.mzstatic.com/image/thumb/Music69/v4/96/94/45/96944522-6c90-de47-5763-4bf022fbe1d8/Zmyzm.png/400x400cc.jpg",
+      "joecolor": "b:fb0216p:160e0fs:161111t:430c11q:430e12"
+    },
+    "share": {
+      "subject": "Postlude - Stephen Philips",
+      "text": "Postlude by Stephen Philips",
+      "href": "https://www.shazam.com/track/132373236/postlude",
+      "image": "https://is1-ssl.mzstatic.com/image/thumb/Music69/v4/96/94/45/96944522-6c90-de47-5763-4bf022fbe1d8/Zmyzm.png/400x400cc.jpg",
+      "twitter": "I used @Shazam to discover Postlude by Stephen Philips.",
+      "html": "https://www.shazam.com/snippets/email-share/132373236?lang=en-US&country=GB",
+      "snapchat": "https://www.shazam.com/partner/sc/track/132373236"
+    },
+    "hub": {
+      "type": "APPLEMUSIC",
+      "image": "https://images.shazam.com/static/icons/hub/android/v5/applemusic_{scalefactor}.png",
+      "actions": [
+        {
+          "name": "apple",
+          "type": "applemusicplay",
+          "id": "1073286928"
+        },
+        {
+          "name": "apple",
+          "type": "uri",
+          "uri": "https://audio-ssl.itunes.apple.com/itunes-assets/Music69/v4/97/02/48/97024899-381f-7a94-14be-9b334055221c/mzaf_3203783529803824264.plus.aac.ep.m4a"
+        }
+      ],
+      "providers": [
+        {
+          "caption": "Open in Spotify",
+          "images": {
+            "overflow": "https://images.shazam.com/static/icons/hub/android/v5/spotify-overflow_{scalefactor}.png",
+            "default": "https://images.shazam.com/static/icons/hub/android/v5/spotify_{scalefactor}.png"
+          },
+          "actions": [
+            {
+              "name": "hub:spotify:searchdeeplink",
+              "type": "uri",
+              "uri": "spotify:search:Postlude%20Stephen%20Philips"
+            }
+          ],
+          "type": "SPOTIFY"
+        },
+        {
+          "caption": "Open in YouTube Music",
+          "images": {
+            "overflow": "https://images.shazam.com/static/icons/hub/android/v5/youtubemusic-overflow_{scalefactor}.png",
+            "default": "https://images.shazam.com/static/icons/hub/android/v5/youtubemusic_{scalefactor}.png"
+          },
+          "actions": [
+            {
+              "name": "hub:youtubemusic:androiddeeplink",
+              "type": "uri",
+              "uri": "https://music.youtube.com/search?q=Postlude+Stephen+Philips&feature=shazam"
+            }
+          ],
+          "type": "YOUTUBEMUSIC"
+        },
+        {
+          "caption": "Open in Deezer",
+          "images": {
+            "overflow": "https://images.shazam.com/static/icons/hub/android/v5/deezer-overflow_{scalefactor}.png",
+            "default": "https://images.shazam.com/static/icons/hub/android/v5/deezer_{scalefactor}.png"
+          },
+          "actions": [
+            {
+              "name": "hub:deezer:searchdeeplink",
+              "type": "uri",
+              "uri": "deezer-query://www.deezer.com/play?query=%7Btrack%3A%27Postlude%27%20artist%3A%27Stephen+Philips%27%7D"
+            }
+          ],
+          "type": "DEEZER"
+        }
+      ],
+      "explicit": false,
+      "displayname": "APPLE MUSIC",
+      "options": [
+        {
+          "caption": "OPEN IN",
+          "actions": [
+            {
+              "name": "hub:applemusic:deeplink",
+              "type": "intent",
+              "uri": "intent://music.apple.com/gb/album/postlude/1073286926?i=1073286928&mttnagencyid=s2n&mttnsiteid=125115&mttn3pid=Apple-Shazam&mttnsub1=Shazam_android_am&mttnsub2=5348615A-616D-3235-3830-44754D6D5973&itscg=30201&app=music&itsct=Shazam_android_am#Intent;scheme=http;package=com.apple.android.music;action=android.intent.action.VIEW;end"
+            },
+            {
+              "name": "hub:applemusic:connect",
+              "type": "applemusicconnect",
+              "id": "1073286928",
+              "uri": "https://unsupported.shazam.com"
+            },
+            {
+              "name": "hub:applemusic:androidstore",
+              "type": "uri",
+              "uri": "https://play.google.com/store/apps/details?id=com.apple.android.music&referrer=utm_source=https%3A%2F%2Fmusic.apple.com%2Fsubscribe%3Fmttnagencyid%3Ds2n%26mttnsiteid%3D125115%26mttn3pid%3DApple-Shazam%26mttnsub1%3DShazam_android_am%26mttnsub2%3D5348615A-616D-3235-3830-44754D6D5973%26itscg%3D30201%26app%3Dmusic%26itsct%3DShazam_android_am"
+            }
+          ],
+          "beacondata": {
+            "type": "open",
+            "providername": "applemusic"
+          },
+          "image": "https://images.shazam.com/static/icons/hub/android/v5/overflow-open-option_{scalefactor}.png",
+          "type": "open",
+          "listcaption": "Open in Apple Music",
+          "overflowimage": "https://images.shazam.com/static/icons/hub/android/v5/applemusic-overflow_{scalefactor}.png",
+          "colouroverflowimage": false,
+          "providername": "applemusic"
+        }
+      ]
+    },
+    "sections": [
+      {
+        "type": "SONG",
+        "metapages": [
+          {
+            "image": "https://is1-ssl.mzstatic.com/image/thumb/Music69/v4/96/94/45/96944522-6c90-de47-5763-4bf022fbe1d8/Zmyzm.png/400x400cc.jpg",
+            "caption": "Postlude"
+          }
+        ],
+        "tabname": "Song",
+        "metadata": [
+          {
+            "title": "Album",
+            "text": "Requiem [Red]"
+          },
+          {
+            "title": "Label",
+            "text": "Dark Duck Records"
+          },
+          {
+            "title": "Released",
+            "text": "2013"
+          }
+        ]
+      },
+      {
+        "type": "RELATED",
+        "url": "https://cdn.shazam.com/shazam/v3/en-US/GB/android/-/tracks/track-similarities-id-132373236?startFrom=0&pageSize=20&connected=",
+        "tabname": "Related"
+      }
+    ],
+    "url": "https://www.shazam.com/track/132373236/postlude",
+    "artists": [
+      {
+        "id": "42",
+        "adamid": "216005566"
+      }
+    ],
+    "genres": {
+      "primary": "Electronic"
+    },
+    "urlparams": {
+      "{tracktitle}": "Postlude",
+      "{trackartist}": "Stephen+Philips"
+    },
+    "highlightsurls": {},
+    "relatedtracksurl": "https://cdn.shazam.com/shazam/v3/en-US/GB/android/-/tracks/track-similarities-id-132373236?startFrom=0&pageSize=20&connected=",
+    "albumadamid": "1073286926",
+    "isrc": "USE831530648"
+  },
+  "tagid": "8F32F5E4-C9FE-48BE-8F21-3A5E27C8265D"
+}

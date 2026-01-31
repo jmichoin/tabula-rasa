@@ -1,0 +1,14 @@
+librosa==0.10.1
+demucs==4.0.0
+basic-pitch==0.2.5
+numpy==1.23.5
+scipy==1.11.1
+torch==2.0.1
+memory_profiler==0.61.0
+psutil
+requests
+beautifulsoup4
+shazamio
+static-ffmpeg
+pydub
+soundfile
