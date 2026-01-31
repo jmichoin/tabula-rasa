@@ -1,0 +1,450 @@
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Activity, Music2, Gauge, FileText, Brain, Save, Edit3, X, Trash2, Plus, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import StemMixer from './StemMixer';
+import MotionChords from './MotionChords';
+import { Button } from '@/components/ui/button';
+
+interface Note {
+    start: number;
+    end: number;
+    pitch: number;
+    velocity: number;
+}
+
+interface Chord {
+    chord: string;
+    start: number;
+    end: number;
+}
+
+interface SongInfo {
+    title: string;
+    artist: string;
+    images?: { coverart?: string };
+    is_hint?: boolean;
+    shazam_id?: string;
+    method?: 'shazam' | 'filename' | 'manual';
+    images_url?: string;
+}
+
+interface ResultsProps {
+    data: {
+        key: string;
+        tuning: string;
+        chords: Chord[];
+        notes: Note[];
+        pro_tab?: string;
+        stems?: Record<string, string>;
+        online_chords?: string[];
+        tempo?: number;
+        song_info?: SongInfo;
+    };
+}
+
+export default function ResultsDisplay({ data }: ResultsProps) {
+    const [currentTime, setCurrentTime] = useState(0);
+    const [activeModal, setActiveModal] = useState<'chords' | 'tab' | null>(null);
+    const [editableChords, setEditableChords] = useState<Chord[]>(data.chords || []);
+    const [editableTab, setEditableTab] = useState(data.pro_tab || "");
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    const guitarTab = useMemo(() => {
+        if (!data.notes || data.notes.length === 0) return "";
+
+        // Define base frequencies for strings
+        // Standard E: E2(40), A2(45), D3(50), G3(55), B3(59), E4(64)
+        let baseOffsets = [64, 59, 55, 50, 45, 40];
+
+        const tuning = data.tuning.toLowerCase();
+        if (tuning.includes('eb standard') || tuning.includes('half step down')) {
+            baseOffsets = baseOffsets.map(n => n - 1);
+        } else if (tuning.includes('d standard')) {
+            baseOffsets = baseOffsets.map(n => n - 2);
+        } else if (tuning.includes('db standard') || tuning.includes('c# standard')) {
+            baseOffsets = baseOffsets.map(n => n - 3);
+        } else if (tuning.includes('c standard')) {
+            baseOffsets = baseOffsets.map(n => n - 4);
+        } else if (tuning.includes('drop d')) {
+            baseOffsets[5] -= 2; // Only low E becomes D
+        } else if (tuning.includes('drop c')) {
+            baseOffsets = baseOffsets.map(n => n - 2);
+            baseOffsets[5] -= 2; // Low E becomes C (2 more steps down)
+        }
+
+        const strings = [
+            { label: 'e', open: baseOffsets[0] },
+            { label: 'B', open: baseOffsets[1] },
+            { label: 'G', open: baseOffsets[2] },
+            { label: 'D', open: baseOffsets[3] },
+            { label: 'A', open: baseOffsets[4] },
+            { label: 'E', open: baseOffsets[5] }
+        ];
+        const tempo = data.tempo || 120;
+        const slotDuration = 60 / tempo / 4;
+        const maxTime = Math.max(...data.notes.map(n => n.end), 1);
+        const numSlots = Math.ceil(maxTime / slotDuration);
+        const tabLines = strings.map(() => Array(numSlots).fill('-'));
+
+        data.notes.forEach(note => {
+            const slotIndex = Math.floor(note.start / slotDuration);
+            if (slotIndex >= numSlots) return;
+            let bestStringIdx = -1;
+            let bestFret = 99;
+            strings.forEach((s, idx) => {
+                const fret = note.pitch - s.open;
+                if (fret >= 0 && fret <= 22) {
+                    if (fret < bestFret) {
+                        bestFret = fret;
+                        bestStringIdx = idx;
+                    }
+                }
+            });
+            if (bestStringIdx !== -1 && tabLines[bestStringIdx][slotIndex] === '-') {
+                tabLines[bestStringIdx][slotIndex] = (note.pitch - strings[bestStringIdx].open).toString();
+            }
+        });
+
+        const blockSize = 64;
+        let finalTab = "";
+        for (let b = 0; b < numSlots; b += blockSize) {
+            const end = Math.min(b + blockSize, numSlots);
+            strings.forEach((s, i) => {
+                let line = `${s.label} |`;
+                for (let k = b; k < end; k++) {
+                    if (k > b && k % 16 === 0) line += '|';
+                    line += tabLines[i][k].padEnd(3, '-');
+                }
+                finalTab += `${line}|\n`;
+            });
+            finalTab += "\n";
+        }
+        return finalTab;
+    }, [data.notes, data.tempo]);
+
+    return (
+        <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-500 pb-20">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                {/* LEFT COLUMN: IDENTITY & TABS (30%) */}
+                <div className="lg:col-span-4 space-y-8">
+                    {/* 1. Song Identity Section */}
+                    <div className="flex flex-col items-center justify-between gap-6 p-6 rounded-3xl bg-primary/5 border border-primary/20 backdrop-blur-xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+
+                        <div className="flex flex-col items-center gap-6 relative z-10 w-full text-center">
+                            {data.song_info?.images?.coverart && (
+                                <img
+                                    src={data.song_info.images.coverart}
+                                    alt="CoverArt"
+                                    className="w-40 h-40 rounded-2xl shadow-2xl border-4 border-background"
+                                />
+                            )}
+                            <div className="space-y-1 flex-1">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-primary/60">Audio Identified</span>
+                                </div>
+                                <h2 className="text-3xl font-black tracking-tight leading-none mb-1">{data.song_info?.title || "Unknown Track"}</h2>
+                                <p className="text-lg text-muted-foreground font-medium mb-3">{data.song_info?.artist || "Unknown Artist"}</p>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    {data.song_info?.method === 'shazam' ? (
+                                        <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider border border-green-500/20 flex items-center gap-1">
+                                            <Activity className="w-3 h-3" /> Shazam Linked
+                                        </span>
+                                    ) : (
+                                        <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20">Local Library</span>
+                                    )}
+                                    {(data as any).learned && (
+                                        <span className="px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-[10px] font-bold uppercase tracking-wider border border-yellow-500/20 flex items-center gap-1">
+                                            <Brain className="w-3 h-3" /> AI Brain Verified
+                                        </span>
+                                    )}
+                                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">{data.key}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 w-full">
+                                {hasChanges && (
+                                    <Button
+                                        size="sm"
+                                        className="w-full rounded-full gap-2 font-black uppercase tracking-wider text-[10px] bg-green-500 text-black hover:bg-green-400 animate-in zoom-in shadow-[0_0_20px_rgba(34,197,94,0.4)]"
+                                        onClick={async () => {
+                                            setIsSaving(true);
+                                            try {
+                                                const res = await fetch('/api/validate', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        song_info: data.song_info,
+                                                        chords: editableChords,
+                                                        pro_tab: editableTab,
+                                                        tuning: data.tuning
+                                                    })
+                                                });
+                                                if (res.ok) {
+                                                    setHasChanges(false);
+                                                    alert("AI Knowledge Updated! The system has learned these corrections and will prioritize them in the future.");
+                                                }
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert("Failed to save corrections.");
+                                            }
+                                            setIsSaving(false);
+                                        }}
+                                        disabled={isSaving}
+                                    >
+                                        <Brain className={cn("w-3 h-3", isSaving && "animate-pulse")} />
+                                        {isSaving ? "Learning..." : "Save to AI Brain"}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. Primary Tablature Section (Professional vs AI) */}
+                    <Card className={cn(
+                        "bg-background/80 backdrop-blur-md border shadow-2xl overflow-hidden rounded-3xl transition-all duration-500",
+                        data.pro_tab ? "border-green-500/30 ring-1 ring-green-500/10" : "border-primary/30"
+                    )}>
+                        <CardHeader className={cn(
+                            "border-b p-4 flex flex-col gap-4",
+                            data.pro_tab ? "bg-green-500/5 border-green-500/10" : "bg-primary/5 border-primary/10"
+                        )}>
+                            <div className="flex items-center justify-between w-full">
+                                <CardTitle className="flex items-center gap-3 text-lg">
+                                    <FileText className={cn("w-4 h-4", data.pro_tab ? "text-green-500" : "text-primary")} />
+                                    Tab
+                                </CardTitle>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-[10px] font-bold uppercase tracking-wider text-primary border border-primary/20 hover:bg-primary/10 rounded-full gap-2"
+                                    onClick={() => setActiveModal('tab')}
+                                >
+                                    <Edit3 className="w-3 h-3" /> Edit
+                                </Button>
+                            </div>
+                            <div className="flex gap-2">
+                                {data.pro_tab ? (
+                                    <span className="text-[9px] uppercase font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20">Pro Source</span>
+                                ) : (
+                                    <div className="text-[9px] uppercase font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">AI Generated</div>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className={cn(
+                                "p-4 bg-zinc-950 font-mono overflow-x-auto whitespace-pre leading-relaxed text-[10px] selection:bg-green-500 selection:text-black scrollbar-hide min-h-[400px]",
+                                data.pro_tab ? "text-green-400" : "text-primary/80"
+                            )}>
+                                {data.pro_tab ? (
+                                    editableTab.split('\n').map((line, idx) => {
+                                        if (idx === 2 || line.trim().match(/^[A-G][#b]?[majmin0-9]*(\s+[A-G][#b]?[majmin0-9]*)*$/)) {
+                                            return <div key={idx} className="text-white font-black mb-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{line}</div>;
+                                        }
+                                        return <div key={idx}>{line}</div>;
+                                    })
+                                ) : guitarTab ? (
+                                    guitarTab
+                                ) : (
+                                    <div className="py-20 text-center space-y-4">
+                                        <Music2 className="w-10 h-10 text-primary/20 mx-auto" />
+                                        <div className="text-primary/60 text-xs font-medium">No transcription found.</div>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* RIGHT COLUMN: PRACTICE CONSOLE & CHORDS (70%) */}
+                <div className="lg:col-span-8 space-y-8 lg:sticky lg:top-8">
+                    <div className="space-y-6">
+                        {data.stems && (
+                            <StemMixer stems={data.stems} onTimeUpdate={setCurrentTime} />
+                        )}
+
+                        {editableChords && editableChords.length > 0 && (
+                            <div className="animate-in fade-in slide-in-from-top-4 duration-700 delay-300">
+                                <div className="flex items-center gap-3 mb-3 px-2">
+                                    <div className="p-1 px-3 bg-green-500 text-black text-[10px] font-black uppercase rounded-md shadow-[0_0_15px_rgba(34,197,94,0.3)]">Active Guide</div>
+                                    <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground mr-auto">Automatic Chord Sync™</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-[9px] font-black uppercase tracking-[0.1em] text-primary hover:bg-primary/10 rounded-md gap-1"
+                                        onClick={() => setActiveModal('chords')}
+                                    >
+                                        <Edit3 className="w-2.5 h-2.5" /> Edit Chords
+                                    </Button>
+                                    <div className="h-px w-20 bg-primary/10" />
+                                </div>
+                                <MotionChords chords={editableChords} currentTime={currentTime} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Static Reference for Chords (Backup/Archive) */}
+                    {!data.stems && data.chords && data.chords.length > 0 && (
+                        <Card className="bg-background/80 backdrop-blur-sm border border-primary/20 rounded-3xl overflow-hidden">
+                            <CardHeader className="border-b border-primary/10 p-6 bg-primary/5">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Music2 className="w-5 h-5 text-primary" />
+                                    Full Progression Reference
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0 max-h-60 overflow-y-auto font-mono">
+                                <div className="divide-y divide-primary/5">
+                                    {data.chords.map((c, i) => (
+                                        <div key={i} className="flex justify-between p-4 px-6 hover:bg-primary/5 items-center">
+                                            <span className="font-black text-2xl text-primary">{c.chord}</span>
+                                            <span className="text-[10px] text-muted-foreground opacity-60">{Math.floor(c.start / 60)}:{(c.start % 60).toFixed(0).padStart(2, '0')}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </div>
+
+            {/* CHORD EDIT MODAL */}
+            {activeModal === 'chords' && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setActiveModal(null)} />
+                    <Card className="w-full max-w-2xl relative z-10 shadow-2xl border-primary/20 rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <CardHeader className="bg-primary/5 border-b border-primary/10 p-6 flex flex-row items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight">
+                                <Music2 className="w-5 h-5 text-primary" />
+                                Edit Progression
+                            </CardTitle>
+                            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setActiveModal(null)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="p-0 max-h-[70vh] overflow-y-auto">
+                            <div className="divide-y divide-primary/5 p-6 space-y-4">
+                                {editableChords.map((c, i) => (
+                                    <div key={i} className="flex items-center gap-4 bg-primary/5 p-4 rounded-2xl group border border-transparent hover:border-primary/20 transition-all">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-4">
+                                                <input
+                                                    className="bg-zinc-950 border border-primary/20 rounded-lg px-3 py-2 font-black text-xl w-24 text-center focus:ring-2 focus:ring-primary outline-none text-primary"
+                                                    value={c.chord}
+                                                    onChange={(e) => {
+                                                        const newChords = [...editableChords];
+                                                        newChords[i].chord = e.target.value;
+                                                        setEditableChords(newChords);
+                                                        setHasChanges(true);
+                                                    }}
+                                                />
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Sync</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        className="bg-zinc-950 border border-primary/10 rounded-lg px-2 py-1 text-xs font-mono w-16 text-center text-primary/70"
+                                                        value={c.start.toFixed(1)}
+                                                        onChange={(e) => {
+                                                            const newChords = [...editableChords];
+                                                            newChords[i].start = parseFloat(e.target.value);
+                                                            setEditableChords(newChords);
+                                                            setHasChanges(true);
+                                                        }}
+                                                    />
+                                                    <span className="text-muted-foreground opacity-30">→</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        className="bg-zinc-950 border border-primary/10 rounded-lg px-2 py-1 text-xs font-mono w-16 text-center text-primary/70"
+                                                        value={c.end.toFixed(1)}
+                                                        onChange={(e) => {
+                                                            const newChords = [...editableChords];
+                                                            newChords[i].end = parseFloat(e.target.value);
+                                                            setEditableChords(newChords);
+                                                            setHasChanges(true);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-red-500/50 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
+                                            onClick={() => {
+                                                setEditableChords(editableChords.filter((_, idx) => idx !== i));
+                                                setHasChanges(true);
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                    variant="outline"
+                                    className="w-full rounded-2xl border-dashed border-2 py-6 gap-2 opacity-60 hover:opacity-100"
+                                    onClick={() => {
+                                        setEditableChords([...editableChords, { chord: 'C', start: 0, end: 5 }]);
+                                        setHasChanges(true);
+                                    }}
+                                >
+                                    <Plus className="w-4 h-4" /> Add New Chord Segment
+                                </Button>
+                            </div>
+                        </CardContent>
+                        <div className="p-6 bg-primary/5 border-t border-primary/10">
+                            <Button
+                                className="w-full rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest py-6 shadow-xl"
+                                onClick={() => setActiveModal(null)}
+                            >
+                                <Check className="w-5 h-5 mr-2" /> Confirm Progression
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* TAB EDIT MODAL */}
+            {activeModal === 'tab' && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setActiveModal(null)} />
+                    <Card className="w-full max-w-4xl relative z-10 shadow-2xl border-primary/20 rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <CardHeader className="bg-primary/5 border-b border-primary/10 p-6 flex flex-row items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight">
+                                <FileText className="w-5 h-5 text-primary" />
+                                Edit Tab Source
+                            </CardTitle>
+                            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setActiveModal(null)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <textarea
+                                className="w-full h-[60vh] bg-zinc-950 p-8 font-mono text-sm text-green-500 outline-none resize-none selection:bg-green-500/20"
+                                value={editableTab}
+                                onChange={(e) => {
+                                    setEditableTab(e.target.value);
+                                    setHasChanges(true);
+                                }}
+                                placeholder="Paste or edit the tab source here..."
+                            />
+                        </CardContent>
+                        <div className="p-6 bg-primary/5 border-t border-primary/10">
+                            <Button
+                                className="w-full rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest py-6 shadow-xl"
+                                onClick={() => setActiveModal(null)}
+                            >
+                                <Check className="w-5 h-5 mr-2" /> Update Tab Content
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+        </div>
+    );
+}
