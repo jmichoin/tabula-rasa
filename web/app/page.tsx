@@ -144,37 +144,32 @@ function InputField({ label, placeholder, value, onChange }: InputFieldProps) {
 }
 
 interface InputRowProps {
-  songName: string;
-  setSongName: (val: string) => void;
-  artist: string;
-  setArtist: (val: string) => void;
+  youtubeUrl: string;
+  setYoutubeUrl: (val: string) => void;
   tuning: string;
   setTuning: (val: string) => void;
 }
 
-function InputRow({ songName, setSongName, artist, setArtist, tuning, setTuning }: InputRowProps) {
+function InputRow({ youtubeUrl, setYoutubeUrl, tuning, setTuning }: InputRowProps) {
   return (
     <div className="flex flex-col lg:flex-row gap-[16px] items-start relative shrink-0 w-full lg:flex-wrap xl:flex-nowrap">
-      <InputField label="Song Hint (Optional)" placeholder="e.g. Wonderwall" value={songName} onChange={setSongName} />
-      <InputField label="Artist Hint (Optional)" placeholder="e.g. Oasis" value={artist} onChange={setArtist} />
+      <InputField label="YouTube Link" placeholder="https://www.youtube.com/watch?v=..." value={youtubeUrl} onChange={setYoutubeUrl} />
       <InputField label="Guitar Tuning (Optional)" placeholder="e.g. E standard" value={tuning} onChange={setTuning} />
     </div>
   );
 }
 
 interface InputContainerProps {
-  songName: string;
-  setSongName: (val: string) => void;
-  artist: string;
-  setArtist: (val: string) => void;
+  youtubeUrl: string;
+  setYoutubeUrl: (val: string) => void;
   tuning: string;
   setTuning: (val: string) => void;
 }
 
-function InputContainer({ songName, setSongName, artist, setArtist, tuning, setTuning }: InputContainerProps) {
+function InputContainer({ youtubeUrl, setYoutubeUrl, tuning, setTuning }: InputContainerProps) {
   return (
     <div className="flex flex-col gap-[8px] items-start pb-[4px] relative shrink-0 w-full">
-      <InputRow songName={songName} setSongName={setSongName} artist={artist} setArtist={setArtist} tuning={tuning} setTuning={setTuning} />
+      <InputRow youtubeUrl={youtubeUrl} setYoutubeUrl={setYoutubeUrl} tuning={tuning} setTuning={setTuning} />
       <p className="font-['Inter'] font-normal leading-[15px] not-italic relative shrink-0 text-[#1635fb] text-[12px] tracking-[0.3672px]">
         Optional: Declaring tuning significantly improves AI tab accuracy.
       </p>
@@ -285,10 +280,8 @@ function DropZone({ onFileSelect }: DropZoneProps) {
 // AnalyzeButton removed as it's no longer needed
 
 interface RightColumnProps {
-  songName: string;
-  setSongName: (val: string) => void;
-  artist: string;
-  setArtist: (val: string) => void;
+  youtubeUrl: string;
+  setYoutubeUrl: (val: string) => void;
   tuning: string;
   setTuning: (val: string) => void;
   onFileSelect: (file: File) => void;
@@ -297,11 +290,22 @@ interface RightColumnProps {
   uploading: boolean;
 }
 
-function RightColumn({ songName, setSongName, artist, setArtist, tuning, setTuning, onFileSelect, uploading }: Omit<RightColumnProps, 'onAnalyze' | 'hasFile'>) {
+function RightColumn({ youtubeUrl, setYoutubeUrl, tuning, setTuning, onFileSelect, onAnalyze, uploading }: Omit<RightColumnProps, 'hasFile'>) {
   return (
     <div className="bg-white flex flex-col gap-[24px] items-start p-4 md:p-6 lg:p-[40px] relative rounded-[4px] shadow-xl shrink-0 w-full lg:w-auto lg:flex-[1.2] lg:min-w-[580px] max-w-[675px] z-10 transition-all">
-      <InputContainer songName={songName} setSongName={setSongName} artist={artist} setArtist={setArtist} tuning={tuning} setTuning={setTuning} />
-      <DropZone onFileSelect={onFileSelect} />
+      <InputContainer youtubeUrl={youtubeUrl} setYoutubeUrl={setYoutubeUrl} tuning={tuning} setTuning={setTuning} />
+      <div className="w-full space-y-4">
+        <DropZone onFileSelect={onFileSelect} />
+        {youtubeUrl && (
+          <button
+            onClick={onAnalyze}
+            disabled={uploading}
+            className="w-full bg-[#1635fb] hover:bg-[#1024b0] text-white font-['Inter'] font-bold py-4 rounded-[4px] transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+          >
+            Process YouTube Link
+          </button>
+        )}
+      </div>
       {uploading && (
         <div className="w-full h-[77px] bg-[#ffe042]/50 rounded-[4px] flex items-center justify-center">
           <p className="font-['Inter'] font-medium text-[#1635fb] text-[20px] animate-pulse">Initializing AI Brain...</p>
@@ -314,25 +318,31 @@ function RightColumn({ songName, setSongName, artist, setArtist, tuning, setTuni
 export default function Home() {
   const [results, setResults] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [songName, setSongName] = useState('');
-  const [artist, setArtist] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [tuning, setTuning] = useState('');
   const [uploading, setUploading] = useState(false);
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
+    setYoutubeUrl(''); // Clear youtube URL if file is dropped
     handleAnalyze(selectedFile);
   };
 
   const handleAnalyze = async (selectedFile?: File) => {
     const fileToProcess = selectedFile || file;
-    if (!fileToProcess) return;
+    if (!fileToProcess && !youtubeUrl) {
+      alert("Please upload an MP3 or provide a YouTube link.");
+      return;
+    }
 
     setUploading(true);
     const formData = new FormData();
-    formData.append('file', fileToProcess);
-    formData.append('songName', songName || 'Unknown');
-    formData.append('artist', artist || 'Unknown');
+    if (fileToProcess) {
+      formData.append('file', fileToProcess);
+    }
+    if (youtubeUrl) {
+      formData.append('youtubeUrl', youtubeUrl);
+    }
     formData.append('tuning', tuning || 'Standard E');
 
     try {
@@ -396,13 +406,12 @@ export default function Home() {
           <main className="flex flex-col lg:flex-row gap-12 lg:gap-[94px] justify-between items-start w-full mb-24 lg:mb-0">
             <LeftColumn />
             <RightColumn
-              songName={songName}
-              setSongName={setSongName}
-              artist={artist}
-              setArtist={setArtist}
+              youtubeUrl={youtubeUrl}
+              setYoutubeUrl={setYoutubeUrl}
               tuning={tuning}
               setTuning={setTuning}
               onFileSelect={handleFileSelect}
+              onAnalyze={() => handleAnalyze()}
               uploading={uploading}
             />
           </main>

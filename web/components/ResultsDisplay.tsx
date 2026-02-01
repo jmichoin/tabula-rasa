@@ -12,12 +12,14 @@ interface Note {
     end: number;
     pitch: number;
     velocity: number;
+    confidence?: number;
 }
 
 interface Chord {
     chord: string;
     start: number;
     end: number;
+    confidence?: number;
 }
 
 interface SongInfo {
@@ -53,80 +55,135 @@ export default function ResultsDisplay({ data }: ResultsProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Calculate Global Confidence
+    const globalConfidence = useMemo(() => {
+        let totalConf = 0;
+        let count = 0;
+        if (data.chords) {
+            data.chords.forEach(c => { totalConf += (c.confidence ?? 1.0); count++; });
+        }
+        if (data.notes) {
+            data.notes.forEach(n => { totalConf += (n.confidence ?? 1.0); count++; });
+        }
+        return count > 0 ? (totalConf / count) * 100 : 95;
+    }, [data.chords, data.notes]);
+
+    // ... (guitarTab calculation remains same)
+
+    // ...
+
+    // Update global confidence rendering
+    // Around line 312 in original file
+    // <p className="text-[#1635fb] text-3xl font-black uppercase tracking-tight text-center">98.4%</p>
+    // to
+    // <p className="text-[#1635fb] text-3xl font-black uppercase tracking-tight text-center">{globalConfidence.toFixed(1)}%</p>
+    // and width style
+
+
     const guitarTab = useMemo(() => {
-        if (!data.notes || data.notes.length === 0) return "";
-        let baseOffsets = [64, 59, 55, 50, 45, 40];
-        const tuning = data.tuning.toLowerCase();
-        if (tuning.includes('eb standard') || tuning.includes('half step down')) {
-            baseOffsets = baseOffsets.map(n => n - 1);
-        } else if (tuning.includes('d standard')) {
-            baseOffsets = baseOffsets.map(n => n - 2);
-        } else if (tuning.includes('db standard')) {
-            baseOffsets = baseOffsets.map(n => n - 3);
-        } else if (tuning.includes('c standard')) {
-            baseOffsets = baseOffsets.map(n => n - 4);
-        } else if (tuning.includes('drop d')) {
-            baseOffsets[5] -= 2;
-        } else if (tuning.includes('drop c')) {
-            baseOffsets = baseOffsets.map(n => n - 2);
-            baseOffsets[5] -= 2;
+        console.log("DEBUG: guitarTab calculation started", {
+            hasNotes: !!data.notes,
+            notesLength: data.notes?.length,
+            sampleNote: data.notes?.[0]
+        });
+
+        if (!data.notes || data.notes.length === 0) {
+            console.log("DEBUG: No notes, returning empty");
+            return "";
         }
 
-        const strings = [
-            { label: 'e', open: baseOffsets[0] },
-            { label: 'B', open: baseOffsets[1] },
-            { label: 'G', open: baseOffsets[2] },
-            { label: 'D', open: baseOffsets[3] },
-            { label: 'A', open: baseOffsets[4] },
-            { label: 'E', open: baseOffsets[5] }
-        ];
+        // Check if notes have fretboard mapping (string/fret) from backend
+        const hasFretboardData = data.notes.some(n => 'string' in n && 'fret' in n);
+
+        console.log("DEBUG: hasFretboardData:", hasFretboardData);
+
+        if (!hasFretboardData) {
+            // Fallback: notes don't have string/fret, return empty
+            return "No tab data available. Notes must include string/fret information from backend.";
+        }
+
+        // Use backend-provided fretboard mappings
         const tempo = data.tempo || 120;
         const slotDuration = 60 / tempo / 4;
         const maxTime = Math.max(...data.notes.map(n => n.end), 1);
         const numSlots = Math.ceil(maxTime / slotDuration);
-        const tabLines = strings.map(() => Array(numSlots).fill('-'));
 
-        data.notes.forEach(note => {
+        console.log("DEBUG: Tab rendering params:", { tempo, slotDuration, maxTime, numSlots });
+
+        // Initialize tab lines (6 strings)
+        const tabLines: string[][] = [
+            Array(numSlots).fill('-'), // String 1 (high e)
+            Array(numSlots).fill('-'), // String 2 (B)
+            Array(numSlots).fill('-'), // String 3 (G)
+            Array(numSlots).fill('-'), // String 4 (D)
+            Array(numSlots).fill('-'), // String 5 (A)
+            Array(numSlots).fill('-'), // String 6 (low E)
+        ];
+
+        let placedNotes = 0;
+        data.notes.forEach((note: any) => {
             const slotIndex = Math.floor(note.start / slotDuration);
-            if (slotIndex >= numSlots) return;
-            let bestStringIdx = -1;
-            let bestFret = 99;
-            strings.forEach((s, idx) => {
-                const fret = note.pitch - s.open;
-                if (fret >= 0 && fret <= 22) {
-                    if (fret < bestFret) {
-                        bestFret = fret;
-                        bestStringIdx = idx;
-                    }
+            if (slotIndex >= numSlots || slotIndex < 0) return;
+
+            const stringIdx = note.string - 1; // Convert 1-based to 0-based
+            const fret = note.fret;
+
+            // Only place fret if string is valid and fret is playable
+            if (stringIdx >= 0 && stringIdx < 6 && fret >= 0 && fret <= 22) {
+                if (tabLines[stringIdx][slotIndex] === '-') {
+                    tabLines[stringIdx][slotIndex] = fret.toString();
+                    placedNotes++;
                 }
-            });
-            if (bestStringIdx !== -1 && tabLines[bestStringIdx][slotIndex] === '-') {
-                tabLines[bestStringIdx][slotIndex] = (note.pitch - strings[bestStringIdx].open).toString();
             }
         });
 
+        console.log("DEBUG: Placed notes on tab:", placedNotes);
+
+        // Format as text blocks
         const blockSize = 64;
+        const stringLabels = ['e', 'B', 'G', 'D', 'A', 'E'];
         let finalTab = "";
+
         for (let b = 0; b < numSlots; b += blockSize) {
             const end = Math.min(b + blockSize, numSlots);
-            strings.forEach((s, i) => {
-                let line = `${s.label} |`;
+            tabLines.forEach((line, i) => {
+                let tabLine = `${stringLabels[i]} |`;
                 for (let k = b; k < end; k++) {
-                    if (k > b && k % 16 === 0) line += '|';
-                    line += tabLines[i][k].padEnd(3, '-');
+                    if (k > b && k % 16 === 0) tabLine += '|';
+                    tabLine += line[k].padEnd(3, '-');
                 }
-                finalTab += `${line}|\n`;
+                finalTab += `${tabLine}|\n`;
             });
             finalTab += "\n";
         }
+
+        console.log("DEBUG: Final tab length:", finalTab.length, "First 200 chars:", finalTab.substring(0, 200));
         return finalTab;
-    }, [data.notes, data.tempo, data.tuning]);
+    }, [data.notes, data.tempo]);
 
     useEffect(() => {
         if (data?.song_info) {
             console.log("DEBUG: Final Song Info in Frontend:", data.song_info);
         }
-    }, [data?.song_info]);
+        // Debug: Check what data we have
+        console.log("DEBUG: ResultsDisplay data:", {
+            hasNotes: !!data.notes,
+            notesCount: data.notes?.length || 0,
+            hasChords: !!data.chords,
+            chordsCount: data.chords?.length || 0,
+            hasStems: !!data.stems,
+            stemKeys: data.stems ? Object.keys(data.stems) : [],
+            sampleNote: data.notes?.[0],
+            sampleChord: data.chords?.[0]
+        });
+    }, [data]);
+
+    // Debug: Log time updates to verify sync
+    useEffect(() => {
+        if (isPlaying) {
+            console.log("Current time:", currentTime.toFixed(2), "Active chords:", editableChords.length);
+        }
+    }, [currentTime, isPlaying]);
 
     return (
         <div className="flex flex-col w-full min-h-screen bg-[#e8e8e8] pb-20">
@@ -177,11 +234,11 @@ export default function ResultsDisplay({ data }: ResultsProps) {
             <main className="w-full flex justify-center px-6 lg:px-0 pt-8 lg:pt-12 overflow-visible">
                 <div className="w-full max-w-[1218px] grid grid-cols-1 lg:grid-cols-12 gap-[34px] items-start">
 
-                    {/* Left Column: Identity & Tabs (4/12) */}
+                    {/* Left Column: Identity, Tuning & AI Confidence (4/12) */}
                     <div className="lg:col-span-4 flex flex-col gap-[34px]">
                         {/* Song Identity Card */}
                         <div className="bg-white rounded-[4px] shadow-2xl overflow-hidden flex flex-col border border-[#1635fb]/10 transition-all hover:border-[#1635fb]/30 hover:translate-y-[-4px] duration-500">
-                            <div className="relative w-full aspect-square bg-[#f7f7f7] shrink-0 overflow-hidden group">
+                            <div className="relative w-full aspect-video bg-[#f7f7f7] shrink-0 overflow-hidden group">
                                 {data.song_info?.images?.coverart || data.song_info?.images?.background ? (
                                     <Image
                                         src={data.song_info.images?.coverart || data.song_info.images?.background || ''}
@@ -199,8 +256,8 @@ export default function ResultsDisplay({ data }: ResultsProps) {
                             </div>
 
                             <div className="p-8 lg:p-10 space-y-6 bg-white relative">
-                                <div className="space-y-2 text-center">
-                                    <h2 className="font-['Inter'] font-black text-[#1635fb] text-[28px] lg:text-[36px] leading-[1.1] tracking-[-0.05em] drop-shadow-sm">
+                                <div className="space-y-2 text-left">
+                                    <h2 className="font-['Inter'] font-semibold text-[#1635fb] text-[26px] leading-[1.1] tracking-tight drop-shadow-sm">
                                         {data.song_info?.title || "Unknown Track"}
                                     </h2>
                                     <p className="font-['Inter'] font-bold text-[#1635fb] text-[18px] lg:text-[20px] tracking-[-0.02em] opacity-60 uppercase">
@@ -208,7 +265,7 @@ export default function ResultsDisplay({ data }: ResultsProps) {
                                     </p>
                                 </div>
 
-                                <div className="flex flex-wrap gap-2 justify-center pt-2">
+                                <div className="flex flex-wrap gap-2 justify-start pt-2">
                                     <div className="bg-[#1635fb] text-white px-4 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-[#1635fb]/20">
                                         <div className="size-2 bg-white rounded-full animate-pulse" />
                                         <span className="text-[10px] font-black tracking-widest uppercase">
@@ -227,14 +284,58 @@ export default function ResultsDisplay({ data }: ResultsProps) {
                             </div>
                         </div>
 
+                        {/* Tuning & AI Confidence */}
+                        <div className="grid grid-cols-1 gap-[34px]">
+                            <div className="bg-[#1635fb] rounded-[4px] p-6 shadow-xl flex flex-col justify-center gap-2 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                                    <Image src="/uploaded_media_2_1769943279981.png" alt="Icon" width={80} height={80} />
+                                </div>
+                                <span className="text-white/60 font-black text-[10px] uppercase tracking-[3px]">Target Tuning</span>
+                                <p className="text-white text-[26px] font-semibold tracking-tight">{data.tuning || "Standard E"}</p>
+                                <div className="flex gap-1 mt-2">
+                                    {['E', 'A', 'D', 'G', 'B', 'E'].map((n, i) => (
+                                        <div key={i} className="size-6 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white border border-white/20">
+                                            {n}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-[#ffe042] rounded-[4px] p-6 shadow-xl flex flex-col justify-center gap-2 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform duration-500">
+                                    <Image src="/uploaded_media_2_1769943279981.png" alt="Icon" width={80} height={80} />
+                                </div>
+                                <span className="text-[#1635fb]/60 font-black text-[10px] uppercase tracking-[3px]">AI Confidence</span>
+                                <p className="text-[#1635fb] text-[26px] font-semibold tracking-tight text-center">{globalConfidence.toFixed(1)}%</p>
+                                <div className="w-full h-1.5 bg-[#1635fb]/10 rounded-full mt-2 overflow-hidden">
+                                    <div className="h-full bg-[#1635fb]" style={{ width: `${globalConfidence}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Console, Chords & Tabs (8/12) */}
+                    <div className="lg:col-span-8 flex flex-col gap-[34px]">
+                        {/* Practice Console */}
+                        <StemMixer
+                            stems={data.stems || {}}
+                            onTimeUpdate={setCurrentTime}
+                            isPlaying={isPlaying}
+                            onPlayPause={() => setIsPlaying(!isPlaying)}
+                        />
+
+                        {/* Motion Chords Visualizer */}
+                        <MotionChords
+                            chords={editableChords}
+                            currentTime={currentTime}
+                            onEdit={() => setActiveModal('chords')}
+                        />
+
                         {/* Tabs Card */}
                         <div className="bg-white rounded-[4px] shadow-2xl p-8 lg:p-10 flex flex-col border border-[#1635fb]/10 transition-all hover:border-[#1635fb]/30 min-h-[500px]">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
-                                    <div className="bg-[#fdc700] p-2 rounded-[4px] shadow-lg">
-                                        <FileText className="size-5 text-[#1635fb]" />
-                                    </div>
-                                    <h3 className="font-['Inter'] font-black text-[#1635fb] text-[20px] lg:text-[24px] uppercase tracking-tighter">Guitar Tabs</h3>
+                                    <Image src="/uploaded_media_1769943605834.png" alt="Tabs Icon" width={32} height={32} />
+                                    <h3 className="font-['Inter'] font-semibold text-[#1635fb] text-[26px] tracking-tight whitespace-nowrap">Guitar Tabs</h3>
                                 </div>
                                 <button
                                     onClick={() => setActiveModal('tab')}
@@ -245,74 +346,6 @@ export default function ResultsDisplay({ data }: ResultsProps) {
                             </div>
                             <div className="flex-1 bg-[#1635fb]/5 rounded-[4px] p-6 font-mono text-[#1635fb] text-[11px] lg:text-[12px] leading-relaxed whitespace-pre overflow-x-auto custom-scrollbar border border-[#1635fb]/5">
                                 {editableTab || guitarTab || "Synthesizing tab data..."}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column: Console & Chords (8/12) */}
-                    <div className="lg:col-span-8 flex flex-col gap-[34px]">
-                        {/* Practice Console */}
-                        <div className="bg-white rounded-[4px] shadow-2xl overflow-hidden border border-[#1635fb]/10 transition-all hover:border-[#1635fb]/30">
-                            <StemMixer
-                                stems={data.stems || {}}
-                                onTimeUpdate={setCurrentTime}
-                                isPlaying={isPlaying}
-                                onPlayPause={() => setIsPlaying(!isPlaying)}
-                            />
-                        </div>
-
-                        {/* Motion Chords Visualizer */}
-                        <div className="bg-white rounded-[4px] shadow-2xl p-6 lg:p-8 border border-[#1635fb]/10 transition-all hover:border-[#1635fb]/30 flex flex-col gap-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-[#ef3a98] p-2 rounded-[4px] shadow-lg">
-                                        <Activity className="size-5 text-white" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <h3 className="font-['Inter'] font-black text-[#1635fb] text-[20px] uppercase tracking-tighter leading-none">Chord Sync</h3>
-                                        <span className="text-[10px] font-bold text-[#1635fb]/40 uppercase tracking-widest mt-1">Real-time Progression</span>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setActiveModal('chords')}
-                                    className="bg-transparent text-[#1635fb] border border-[#1635fb]/20 rounded-[4px] px-4 py-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest hover:bg-[#1635fb]/5 transition-all"
-                                >
-                                    <Edit3 className="size-4" /> Adjust
-                                </button>
-                            </div>
-
-                            <MotionChords
-                                chords={editableChords}
-                                currentTime={currentTime}
-                                onEdit={() => setActiveModal('chords')}
-                            />
-                        </div>
-
-                        {/* Tuning & Info Footer */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-[34px]">
-                            <div className="bg-[#1635fb] rounded-[4px] p-8 shadow-xl flex flex-col justify-center gap-2 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                                    <Settings className="size-20 text-white" />
-                                </div>
-                                <span className="text-white/60 font-black text-[10px] uppercase tracking-[3px]">Target Tuning</span>
-                                <p className="text-white text-3xl font-black uppercase tracking-tight">{data.tuning || "Standard E"}</p>
-                                <div className="flex gap-1 mt-2">
-                                    {['E', 'A', 'D', 'G', 'B', 'E'].map((n, i) => (
-                                        <div key={i} className="size-6 bg-white/10 rounded flex items-center justify-center text-[10px] font-bold text-white border border-white/20">
-                                            {n}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="bg-[#ffe042] rounded-[4px] p-8 shadow-xl flex flex-col justify-center gap-2 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform duration-500">
-                                    <Brain className="size-20 text-[#1635fb]" />
-                                </div>
-                                <span className="text-[#1635fb]/60 font-black text-[10px] uppercase tracking-[3px]">AI Confidence</span>
-                                <p className="text-[#1635fb] text-3xl font-black uppercase tracking-tight text-center">98.4%</p>
-                                <div className="w-full h-1.5 bg-[#1635fb]/10 rounded-full mt-2 overflow-hidden">
-                                    <div className="h-full bg-[#1635fb] w-[98.4%]" />
-                                </div>
                             </div>
                         </div>
                     </div>

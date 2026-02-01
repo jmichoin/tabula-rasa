@@ -2,21 +2,24 @@
 
 import React, { useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Edit3 } from 'lucide-react';
+import { Edit3, Activity } from 'lucide-react';
+import Image from 'next/image';
 
 interface Chord {
     chord: string;
     start: number;
     end: number;
+    confidence?: number;
 }
 
 interface MotionChordsProps {
     chords: Chord[];
     currentTime: number;
     onEdit?: () => void;
+    onChordClick?: (index: number) => void;
 }
 
-const PLACEHOLDER_CHORDS = [
+const PLACEHOLDER_CHORDS: Chord[] = [
     { chord: 'A', start: 0, end: 1 },
     { chord: 'A', start: 1, end: 2 },
     { chord: 'Am', start: 2, end: 3 },
@@ -32,14 +35,25 @@ export default function MotionChords({ chords = [], currentTime, onEdit }: Motio
     const displayChords = chords.length > 0 ? chords : PLACEHOLDER_CHORDS;
 
     const activeIndex = useMemo(() => {
+        if (displayChords.length === 0) return -1;
         if (currentTime <= 0) return 0;
+
+        // Find the chord that contains the current time
         for (let i = 0; i < displayChords.length; i++) {
             const current = displayChords[i];
             const next = displayChords[i + 1];
+
+            // If we're within this chord's duration (before next chord starts)
             if (currentTime >= current.start && (!next || currentTime < next.start)) {
                 return i;
             }
         }
+
+        // If currentTime is after all chords, stay on the last one
+        if (currentTime >= displayChords[displayChords.length - 1].start) {
+            return displayChords.length - 1;
+        }
+
         return -1;
     }, [displayChords, currentTime]);
 
@@ -57,25 +71,16 @@ export default function MotionChords({ chords = [], currentTime, onEdit }: Motio
     const progressPercent = Math.min((currentTime / totalDuration) * 100, 100);
 
     return (
-        <div className="bg-white rounded-[4px] p-6 lg:p-10 shadow-sm w-full overflow-hidden">
+        <div className="bg-white rounded-[4px] shadow-2xl p-8 lg:p-10 flex flex-col border border-[#1635fb]/10 transition-all hover:border-[#1635fb]/30 w-full overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-6">
-                    <div className="flex items-center gap-3">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#fdc700] shrink-0">
-                            <path d="M12 20V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M18 20V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M6 20V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        <h2 className="font-['Inter'] font-medium text-[#1635fb] text-[20px] lg:text-[28px] tracking-tight whitespace-nowrap">Chords</h2>
-                    </div>
-                    <div className="flex items-center gap-2 lg:gap-4">
-                        <span className="text-[#1635fb] text-[9px] font-bold tracking-[0.5px] uppercase leading-none opacity-60 whitespace-nowrap">AUTOMATIC CHORD SYNC</span>
-                    </div>
+                <div className="flex items-center gap-3">
+                    <Image src="/uploaded_media_1769943593572.png" alt="Chords Icon" width={32} height={32} />
+                    <h3 className="font-['Inter'] font-semibold text-[#1635fb] text-[26px] tracking-tight whitespace-nowrap">Chord Sync</h3>
                 </div>
                 <button
                     onClick={onEdit}
-                    className="bg-[#1635fb] hover:bg-[#1024b0] text-white rounded-[4px] px-4 lg:px-6 h-[40px] lg:h-[45px] flex items-center gap-2 text-[14px] lg:text-[16px] transition-colors shrink-0"
+                    className="bg-[#1635fb] text-white rounded-[4px] px-4 py-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest hover:bg-[#1024b0] transition-all shadow-md active:scale-95"
                 >
                     <Edit3 className="size-4" /> Edit
                 </button>
@@ -90,19 +95,28 @@ export default function MotionChords({ chords = [], currentTime, onEdit }: Motio
                 >
                     {displayChords.map((c, i) => {
                         const isActive = i === activeIndex;
+                        const confidence = c.confidence ?? 1.0;
+                        const isLowConfidence = confidence < 0.7;
+
                         return (
                             <div
                                 key={`${c.chord}-${i}`}
                                 ref={isActive ? activeChordRef : null}
+                                onClick={() => onEdit && onEdit()} // Open edit modal on click
                                 className={cn(
-                                    "flex-shrink-0 w-[120px] lg:w-[140px] h-[80px] lg:h-[90px] border border-[#1635fb] rounded-[4px] flex flex-col items-center justify-center transition-all duration-300",
-                                    isActive ? "bg-[#ffe042] border-[#1635fb] scale-105 shadow-md z-10" : "bg-white opacity-60"
+                                    "flex-shrink-0 w-[120px] lg:w-[140px] h-[80px] lg:h-[90px] border rounded-[4px] flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:scale-105",
+                                    isActive ? "bg-[#ffe042] border-[#1635fb] scale-105 shadow-md z-10" : "bg-white",
+                                    !isActive && isLowConfidence ? "border-dashed border-[#1635fb]/40 opacity-50" : "border-[#1635fb]",
+                                    !isActive && !isLowConfidence ? "opacity-60" : ""
                                 )}
                             >
                                 <span className="text-[#1635fb] text-[32px] lg:text-[42px] font-black italic tracking-tighter leading-none">{c.chord}</span>
                                 <span className="text-[#1635fb] text-[10px] lg:text-[12px] font-bold mt-1 opacity-80">
                                     {Math.floor(c.start / 60)}:{(c.start % 60).toFixed(0).padStart(2, '0')}
                                 </span>
+                                {isLowConfidence && (
+                                    <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest mt-1">Low Confidence</span>
+                                )}
                             </div>
                         );
                     })}

@@ -7,32 +7,37 @@ export async function POST(request: NextRequest) {
     try {
         const data = await request.formData();
         const file: File | null = data.get('file') as unknown as File;
-        const songName = data.get('songName') as string || 'Unknown';
-        const artist = data.get('artist') as string || 'Unknown';
+        const youtubeUrl = data.get('youtubeUrl') as string;
         const tuning = data.get('tuning') as string || 'Standard E';
 
-        if (!file) {
-            return NextResponse.json({ success: false, message: 'No file received' }, { status: 400 });
+        if (!file && !youtubeUrl) {
+            return NextResponse.json({ success: false, message: 'No file or YouTube URL received' }, { status: 400 });
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        let inputArg = "";
+        let displayName = "YouTube Track";
 
-        // Save to public/uploads
+        // Save directory setup
         const uploadDir = join(process.cwd(), 'public', 'uploads');
         const stemsDir = join(process.cwd(), 'public', 'stems');
-
         try {
             await mkdir(uploadDir, { recursive: true });
             await mkdir(stemsDir, { recursive: true });
-        } catch (e) {
-            // Ignore if exists
+        } catch (e) { }
+
+        if (file) {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            const filePath = join(uploadDir, file.name);
+            await writeFile(filePath, buffer);
+            inputArg = filePath;
+            displayName = file.name;
+        } else {
+            inputArg = youtubeUrl;
+            displayName = youtubeUrl;
         }
 
-        const filePath = join(uploadDir, file.name);
-        await writeFile(filePath, buffer);
-
-        console.log(`File saved to ${filePath} for ${songName} by ${artist}`);
+        console.log(`Processing ${displayName} with tuning ${tuning}`);
 
         // --- Execute Python Script ---
         const pythonScriptPath = join(process.cwd(), '..', 'execution', 'ml', 'process_audio.py');
@@ -46,9 +51,9 @@ export async function POST(request: NextRequest) {
             // Use spawn for safer argument handling
             const pyProcess = spawn(pythonPath, [
                 pythonScriptPath,
-                filePath,
-                songName,
-                artist,
+                inputArg,
+                "Unknown", // songName hint
+                "Unknown", // artistName hint
                 stemsDir,
                 tuning
             ]);
@@ -93,8 +98,8 @@ export async function POST(request: NextRequest) {
 
                     resolve(NextResponse.json({
                         success: true,
-                        message: 'File processed successfully',
-                        path: `/uploads/${file.name}`,
+                        message: 'Processed successfully',
+                        path: file ? `/uploads/${file.name}` : `/uploads/${results.song_info?.title || 'youtube'}.mp3`,
                         data: results
                     }));
                 } catch (e) {
