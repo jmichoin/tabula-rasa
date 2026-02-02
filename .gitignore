@@ -56,3 +56,14 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Media and Data
+web/public/stems/*
+!web/public/stems/.gitkeep
+web/public/uploads/*
+!web/public/uploads/.gitkeep
+web/public/uploaded_media_*.png
+data/
+*.mp3
+*.wav
+*.webm
